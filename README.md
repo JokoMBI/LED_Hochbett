@@ -1,3 +1,3 @@
 # LED_Hochbett
 
-Dekobeleuchtung und Tageslichtwecker mit LED Stripes (WS22811) und Arduino Nano
+Dekobeleuchtung und Tageslichtwecker mit LED Stripes (WS2811) und Arduino Nano
