@@ -1,84 +1,121 @@
 #include <FastLED.h>
-#define NUM_LEDS 6 //97
+#include <SoftwareSerial.h>
+#define NUM_LEDS 20 //97
 #define DATA_PIN 3
 #define COLOR_ORDER BRG
 
-DEFINE_GRADIENT_PALETTE( heatmap_gp ) {
-  0,     0,  0,  0,   //black
-128,   255,  0,  0,   //red
-224,   255,200, 50,   //bright yellow
-255,   255,255,255 }; //full white
+SoftwareSerial BT(10, 11); // RX, TX
+String BTMsg;
 
-CRGBPalette16 sunrisePal = heatmap_gp;
+byte red, green, blue;
+
+DEFINE_GRADIENT_PALETTE( heatmap_gp ) {
+  0,     0,  0,  0,       //black
+  80 ,   255,  0,  0,     //red
+  170,   255, 80, 20,     //orange
+  220,   255, 200, 50,    //bright yellow
+  255,   255, 255, 220 }; //full white
+
+CRGBPalette256 sunrisePal = heatmap_gp;
 
 CRGB leds[NUM_LEDS];
 
 
-
-CRGB clr1;
-CRGB clr2;
-uint8_t speed;
-uint8_t loc1;
-uint8_t loc2;
-uint8_t ran1;
-uint8_t ran2;
-
-
-
-void setup() {  
+void setup() {
+  //Serial.begin(9600);
+  BT.begin(115200);
+  delay(500);
   FastLED.addLeds<WS2811, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
+
 }
 
 void loop() {
 
-  //blendwave();
-  Sonnenaufgang();
+  if (BT.available()) {
+    readMsg();
+  }
+
+  //Sonnenaufgang();
+  //full();
 
   FastLED.show();
 }
+
+void full() {
+  fill_solid(leds, NUM_LEDS, ColorFromPalette(sunrisePal, 255));
+
+
+}
+
+void readMsg() {
+  char incomingByte = 0;
+  while (BT.available() > 0) {
+    incomingByte = BT.read();
+    BTMsg = BTMsg + incomingByte;
+  }
+
+  switch (BTMsg[0]) {
+    case 'R': red = BTMsg[1];
+            fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
+      break;
+    case 'G': green = BTMsg[1];
+            fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
+      break;
+    case 'B': blue = BTMsg[1];
+            fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
+      break;
+  }
+  //Serial.println(BTMsg);
+  BTMsg = "";
+}
+
 
 void Sonnenaufgang() {
 
   static const uint8_t sunriseLength = 5;
   static const uint8_t interval = (sunriseLength * 60) / 256;
-  static uint8_t heatIndex = 50;
-  static uint8_t locIndex = 5;
-  CRGB color1 = ColorFromPalette(sunrisePal, heatIndex);
-  CRGB color2 = ColorFromPalette(sunrisePal, heatIndex-50);
-  //fill_solid(leds, NUM_LEDS, color);
+  static uint8_t sunIndex = 0;
+  static uint8_t locIndex = 7;
+  int diffIndex = 0;
+  static uint8_t grad = 4;
 
-  fill_gradient_RGB(leds, locIndex-5, color2, locIndex, color1);
-  fill_gradient_RGB(leds, locIndex, color1, locIndex+5, color2);
+  CRGB clr1 = ColorFromPalette(sunrisePal, sunIndex);
 
-  EVERY_N_SECONDS(sunriseLength*60/97) {
-    if (locIndex <97) {
-      locIndex++;
+  leds[locIndex] = clr1;
+  diffIndex = sunIndex;
+  for (uint8_t i = locIndex + 1; i < NUM_LEDS; i++) {
+    diffIndex = diffIndex - (i - locIndex) * grad;
+    if (diffIndex > 0) {
+      leds[i] = ColorFromPalette(sunrisePal, diffIndex);
     }
-    else {locIndex = 0;}
   }
-  
+  diffIndex = sunIndex;
+  for (uint8_t i = locIndex; i > 0;) {
+    i--;
+    diffIndex = diffIndex - (locIndex - i) * grad;
+    if (diffIndex > 0) {
+      leds[i] = ColorFromPalette(sunrisePal, diffIndex);
+    }
+  }
+
+
+  EVERY_N_SECONDS(sunriseLength * 60 / 2) {
+    if (grad > 0) {
+      //grad --;
+    }
+  }
+  EVERY_N_SECONDS(20) {
+    if (locIndex < NUM_LEDS - 1) {
+      //locIndex ++;
+    }
+  }
+
   EVERY_N_SECONDS(interval) {
 
-    if (heatIndex < 255) {
-      heatIndex++;
+    if (sunIndex < 255) {
+      sunIndex++;
     }
-    else {heatIndex = 0;}
   }
 }
-
-void blendwave() {
-
-  speed = beatsin8(6,0,255);
-
-  clr1 = blend(CHSV(beatsin8(3,0,255),255,255), CHSV(beatsin8(4,0,255),255,255), speed);
-  clr2 = blend(CHSV(beatsin8(4,0,255),255,255), CHSV(beatsin8(3,0,255),255,255), speed);
-
-  loc1 = beatsin8(10,0,NUM_LEDS-1);
-  
-  fill_gradient_RGB(leds, 0, clr2, loc1, clr1);
-  fill_gradient_RGB(leds, loc1, clr2, NUM_LEDS-1, clr1);
-
-} // blendwave()
-
 
 
