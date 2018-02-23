@@ -7,7 +7,8 @@
 SoftwareSerial BT(10, 11); // RX, TX
 String BTMsg;
 
-byte red, green, blue;
+byte red, green, blue, bright1 = 255, bright2 = 255;
+bool stripes, spots;
 
 DEFINE_GRADIENT_PALETTE( heatmap_gp ) {
   0,     0,  0,  0,       //black
@@ -22,11 +23,11 @@ CRGB leds[NUM_LEDS];
 
 
 void setup() {
-  //Serial.begin(9600);
+  Serial.begin(9600);
   BT.begin(115200);
   delay(500);
+  BT.setTimeout(500);
   FastLED.addLeds<WS2811, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
-
 }
 
 void loop() {
@@ -35,9 +36,9 @@ void loop() {
     readMsg();
   }
 
-  //Sonnenaufgang();
+  Sonnenaufgang();
   //full();
-
+  
   FastLED.show();
 }
 
@@ -49,24 +50,64 @@ void full() {
 
 void readMsg() {
   char incomingByte = 0;
-  while (BT.available() > 0) {
-    incomingByte = BT.read();
-    BTMsg = BTMsg + incomingByte;
-  }
+  byte buff[1];
+//  while (BT.available() > 0) {
+//    incomingByte = BT.read();    
+//    BTMsg = BTMsg + incomingByte;
+//  }
+      incomingByte = BT.read();
+      BTMsg += incomingByte;
+      switch (incomingByte) {
+      case 'R': BT.readBytes(buff,1);
+                red = buff[0];
+                fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
+                //BTMsg += buff[0];
+      case 'G': BT.readBytes(buff,1);
+                green = buff[0];
+                fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
+                //BTMsg += buff[0];
+      case 'B': BT.readBytes(buff,1);
+                blue = buff[0];
+                fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
+                //BTMsg += buff[0];
+      case 'a': spots != spots;
+                BT.readBytes(buff,1);
+                if (spots) {
+                  bright1 = buff[0];
+                }
+                else {bright1 = 0;}
+      case 'b': stripes != stripes;
+                BT.readBytes(buff,1);
+                //BTMsg += buff[0];
+                if (stripes) {
+                  bright2 = buff[0];
+                }
+                else {bright2 = 0;}    
+      case 'c': BT.readBytes(buff,1);
+                bright1 = buff[0];
+                //BTMsg += buff[0];
+      case 'd': BT.readBytes(buff,1);
+                bright2 = buff[0];
+                //FastLED.setBrightness(bright2);
+                //BTMsg += buff[0];
+      case 'P': BT.readBytes(buff,1);
+                switch (buff[0]) {
+                    case '1': 
 
-  switch (BTMsg[0]) {
-    case 'R': red = BTMsg[1];
-            fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
-      break;
-    case 'G': green = BTMsg[1];
-            fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
-      break;
-    case 'B': blue = BTMsg[1];
-            fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
-      break;
-  }
+                    case '2':
+
+                    case '3':
+
+                    case '4': Sonnenaufgang();
+
+                    case '5':
+                  break;
+                }
+        break;
+    }
+  
   //Serial.println(BTMsg);
-  BTMsg = "";
+  //BTMsg = "";
 }
 
 
@@ -106,7 +147,7 @@ void Sonnenaufgang() {
   }
   EVERY_N_SECONDS(20) {
     if (locIndex < NUM_LEDS - 1) {
-      //locIndex ++;
+      locIndex ++;
     }
   }
 
@@ -117,5 +158,4 @@ void Sonnenaufgang() {
     }
   }
 }
-
 
