@@ -5,9 +5,8 @@
 #define COLOR_ORDER BRG
 
 SoftwareSerial BT(10, 11); // RX, TX
-String BTMsg;
 
-byte red, green, blue, bright1 = 255, bright2 = 255;
+byte red, green, blue, bright1 = 255, bright2 = 255, prog;
 bool stripes, spots;
 
 DEFINE_GRADIENT_PALETTE( heatmap_gp ) {
@@ -15,12 +14,12 @@ DEFINE_GRADIENT_PALETTE( heatmap_gp ) {
   80 ,   255,  0,  0,     //red
   170,   255, 80, 20,     //orange
   220,   255, 200, 50,    //bright yellow
-  255,   255, 255, 220 }; //full white
+  255,   255, 255, 220    //full white
+};
 
 CRGBPalette256 sunrisePal = heatmap_gp;
 
 CRGB leds[NUM_LEDS];
-
 
 void setup() {
   Serial.begin(9600);
@@ -32,130 +31,94 @@ void setup() {
 
 void loop() {
 
-  if (BT.available()) {
+  while (BT.available()) {
     readMsg();
   }
 
-  Sonnenaufgang();
-  //full();
-  
+  switch (prog) {
+    case 1: fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
+      FastLED.setBrightness(bright2);
+      break;
+    case 2: break;
+    case 3: break;
+    case 4: Sonnenaufgang(); break;
+    case 5: break;
+  }
+
+
   FastLED.show();
 }
 
-void full() {
-  fill_solid(leds, NUM_LEDS, ColorFromPalette(sunrisePal, 255));
-
-
-}
 
 void readMsg() {
-  char incomingByte = 0;
+  char* command;
+  char* dev;
+  char* var;
+  byte ivar;
+
   byte buff[1];
-//  while (BT.available() > 0) {
-//    incomingByte = BT.read();    
-//    BTMsg = BTMsg + incomingByte;
-//  }
-      incomingByte = BT.read();
-      BTMsg += incomingByte;
-      switch (incomingByte) {
-      case 'R': BT.readBytes(buff,1);
-                red = buff[0];
-                fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
-                //BTMsg += buff[0];
-      case 'G': BT.readBytes(buff,1);
-                green = buff[0];
-                fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
-                //BTMsg += buff[0];
-      case 'B': BT.readBytes(buff,1);
-                blue = buff[0];
-                fill_solid(leds, NUM_LEDS, CRGB(red, green, blue));
-                //BTMsg += buff[0];
-      case 'a': spots != spots;
-                BT.readBytes(buff,1);
-                if (spots) {
-                  bright1 = buff[0];
-                }
-                else {bright1 = 0;}
-      case 'b': stripes != stripes;
-                BT.readBytes(buff,1);
-                //BTMsg += buff[0];
-                if (stripes) {
-                  bright2 = buff[0];
-                }
-                else {bright2 = 0;}    
-      case 'c': BT.readBytes(buff,1);
-                bright1 = buff[0];
-                //BTMsg += buff[0];
-      case 'd': BT.readBytes(buff,1);
-                bright2 = buff[0];
-                //FastLED.setBrightness(bright2);
-                //BTMsg += buff[0];
-      case 'P': BT.readBytes(buff,1);
-                switch (buff[0]) {
-                    case '1': 
+  //  while (BT.available() > 0) {
+  //    incomingByte = BT.read();
+  //    BTMsg = BTMsg + incomingByte;
+  //  }
 
-                    case '2':
+  BT.readBytesUntil(',', command, 5);
+  BT.readBytesUntil(',', dev, 5);
+  BT.readBytesUntil('.', var, 5);
 
-                    case '3':
+  ivar = atoi(var);
 
-                    case '4': Sonnenaufgang();
-
-                    case '5':
-                  break;
-                }
-        break;
+  if (command == "set") {
+    switch (dev[0]) {
+      case 'a': bright1 = ivar; break;
+      case 'b': bright2 = ivar; break;
+      case 'R': red = ivar; break;
+      case 'G': green = ivar; break;
+      case 'B': blue = ivar; break;
+      case 'P': prog = ivar; break;
     }
-  
-  //Serial.println(BTMsg);
-  //BTMsg = "";
+  }
+  if (command == "sw") {
+    switch (dev[0]) {
+      case 'a': spots != spots; break;
+      case 'b': stripes != stripes; break;
+    }
+  }
+
+  Serial.print(command);
+  Serial.print(dev);
+  Serial.print(var);
+  Serial.print('\n');
+
 }
 
 
 void Sonnenaufgang() {
 
-  static const uint8_t sunriseLength = 5;
-  static const uint8_t interval = (sunriseLength * 60) / 256;
-  static uint8_t sunIndex = 0;
-  static uint8_t locIndex = 7;
-  int diffIndex = 0;
-  static uint8_t grad = 4;
+  static const byte sunriseLength = 5;
+  static const unsigned int interval = (sunriseLength * 60000) / 256; //milliseconds!!
+  static byte sunIndex = 0;
+  static byte maxIndex = NUM_LEDS / 4;
+  static byte clr = 0;
+  static unsigned int width = 1000;
 
-  CRGB clr1 = ColorFromPalette(sunrisePal, sunIndex);
-
-  leds[locIndex] = clr1;
-  diffIndex = sunIndex;
-  for (uint8_t i = locIndex + 1; i < NUM_LEDS; i++) {
-    diffIndex = diffIndex - (i - locIndex) * grad;
-    if (diffIndex > 0) {
-      leds[i] = ColorFromPalette(sunrisePal, diffIndex);
-    }
+  for (byte i = 0; i < NUM_LEDS; i++) {
+    clr = sunIndex * exp((-(i + maxIndex) ^ 2) / (width * 10));
+    leds[i] = ColorFromPalette(sunrisePal, clr);
   }
-  diffIndex = sunIndex;
-  for (uint8_t i = locIndex; i > 0;) {
-    i--;
-    diffIndex = diffIndex - (locIndex - i) * grad;
-    if (diffIndex > 0) {
-      leds[i] = ColorFromPalette(sunrisePal, diffIndex);
+
+  EVERY_N_MILLISECONDS((sunriseLength*60000)/(NUM_LEDS/1/2)) {
+    if (maxIndex < NUM_LEDS - 1) {
+      maxIndex ++;
     }
   }
 
-
-  EVERY_N_SECONDS(sunriseLength * 60 / 2) {
-    if (grad > 0) {
-      //grad --;
-    }
-  }
-  EVERY_N_SECONDS(20) {
-    if (locIndex < NUM_LEDS - 1) {
-      locIndex ++;
-    }
-  }
-
-  EVERY_N_SECONDS(interval) {
+  EVERY_N_MILLISECONDS(interval) {
 
     if (sunIndex < 255) {
       sunIndex++;
     }
   }
 }
+
 
