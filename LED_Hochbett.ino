@@ -103,7 +103,7 @@ void Sonnenaufgang() {
   static unsigned int width = 1000;
 
   for (byte i = 0; i < NUM_LEDS; i++) {
-    clr = sunIndex * exp((-(i + maxIndex) ^ 2) / (width * 10));
+    clr = sunIndex * exp((-(i - maxIndex) ^ 2) / (width * 10));
     leds[i] = ColorFromPalette(sunrisePal, clr);
   }
 
